@@ -120,6 +120,14 @@
             font-size: 1.2rem;
             color: var(--primary);
         }
+        .user-info-badge {
+            font-size: 0.85rem;
+            color: #475569;
+            background: #e2e8f0;
+            padding: 0.35rem 0.75rem;
+            border-radius: 20px;
+            font-weight: 600;
+        }
         .nav-tabs {
             display: flex;
             gap: 0.25rem;
@@ -273,6 +281,30 @@
         .mt-3 { margin-top: 1rem; }
         .flex { display: flex; }
         .gap-2 { gap: 0.5rem; }
+        .align-center { align-items: center; }
+        .totals-box {
+            background: #f8fafc;
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 1rem 1.25rem;
+            margin-top: 1.25rem;
+            max-width: 360px;
+            margin-left: auto;
+        }
+        .totals-box .row {
+            display: flex;
+            justify-content: space-between;
+            padding: 0.35rem 0;
+            font-size: 0.95rem;
+        }
+        .totals-box .row.grand {
+            border-top: 2px solid var(--primary);
+            margin-top: 0.5rem;
+            padding-top: 0.6rem;
+            font-weight: 700;
+            font-size: 1.1rem;
+            color: var(--primary);
+        }
     </style>
 </head>
 <body>
@@ -281,23 +313,22 @@
 <div id="loginScreen" class="login-container">
     <div class="login-box">
         <h1>📦 Sipariş Yönetim Sistemi</h1>
-        <p>Satıcı paneline giriş yapın</p>
+        <p>Kullanıcı paneline giriş yapın</p>
         <div class="form-group">
             <label>Kullanıcı Adı</label>
-            <input type="text" id="loginUser" value="admin">
+            <input type="text" id="loginUser" placeholder="Kullanıcı adınızı girin">
         </div>
         <div class="form-group">
             <label>Şifre</label>
-            <input type="password" id="loginPass" value="1234">
+            <input type="password" id="loginPass" placeholder="Şifrenizi girin">
         </div>
         <button class="btn btn-primary btn-block" onclick="login()">Giriş Yap</button>
-        <p class="text-muted mt-3" style="text-align:center;font-size:0.8rem;">Varsayılan: admin / 1234</p>
     </div>
 </div>
 
 <!-- ANA UYGULAMA -->
 <div id="app" class="hidden">
-    <header class="app-header">
+    <header class="app-header" id="appHeader">
         <h1>📦 Sipariş Yönetim Sistemi</h1>
         <div class="nav-tabs">
             <button class="nav-tab active" data-tab="dashboard" onclick="showTab('dashboard')">Özet</button>
@@ -305,10 +336,14 @@
             <button class="nav-tab" data-tab="customers" onclick="showTab('customers')">Alıcılar</button>
             <button class="nav-tab" data-tab="newOrder" onclick="showTab('newOrder')">Yeni Sipariş</button>
             <button class="nav-tab" data-tab="orders" onclick="showTab('orders')">Siparişler</button>
-            <button class="nav-tab" data-tab="buyerView" onclick="showTab('buyerView')">Alıcı Onay</button>
-            <button class="nav-tab" data-tab="settings" onclick="showTab('settings')">Ayarlar</button>
+            <button class="nav-tab admin-only hidden" data-tab="buyerView" onclick="showTab('buyerView')">Alıcı Onay</button>
+            <button class="nav-tab admin-only hidden" data-tab="users" onclick="showTab('users')">Kullanıcılar</button>
+            <button class="nav-tab admin-only hidden" data-tab="settings" onclick="showTab('settings')">Ayarlar</button>
         </div>
-        <button class="btn btn-outline btn-sm" onclick="logout()">Çıkış</button>
+        <div class="flex gap-2 align-center">
+            <span id="currentUserDisplay" class="user-info-badge"></span>
+            <button class="btn btn-outline btn-sm" onclick="logout()">Çıkış</button>
+        </div>
     </header>
 
     <main class="main-content">
@@ -330,7 +365,7 @@
 
         <!-- ÜRÜNLER -->
         <div id="tab-products" class="tab-content hidden">
-            <div class="card">
+            <div class="card admin-only hidden" id="productUploadCard">
                 <div class="card-header"><h2>Ürün Yükleme (CSV)</h2></div>
                 <div class="card-body">
                     <div class="alert alert-info">
@@ -345,14 +380,14 @@
             <div class="card">
                 <div class="card-header">
                     <h2>Yüklü Ürünler</h2>
-                    <button class="btn btn-danger btn-sm" onclick="clearProducts()">Tümünü Sil</button>
+                    <button class="btn btn-danger btn-sm admin-only hidden" onclick="clearProducts()">Tümünü Sil</button>
                 </div>
                 <div class="card-body" style="overflow-x:auto;">
                     <table>
                         <thead>
                             <tr>
                                 <th>Ürün Kodu</th><th>Açıklama</th><th>Barkod</th>
-                                <th>Paket İçi</th><th>Koli İçi</th><th>Palet İçi</th><th>Fiyat</th><th></th>
+                                <th>Paket İçi</th><th>Koli İçi</th><th>Palet İçi</th><th>Fiyat</th><th>İşlem</th>
                             </tr>
                         </thead>
                         <tbody id="productsTable"></tbody>
@@ -364,8 +399,11 @@
         <!-- ALICILAR -->
         <div id="tab-customers" class="tab-content hidden">
             <div class="card">
-                <div class="card-header"><h2>Yeni Alıcı Kaydet</h2></div>
+                <div class="card-header">
+                    <h2 id="customerFormTitle">Yeni Alıcı Kaydet</h2>
+                </div>
                 <div class="card-body">
+                    <input type="hidden" id="custEditId" value="">
                     <div class="grid-2">
                         <div class="form-group">
                             <label>Alıcı Ünvanı *</label>
@@ -383,12 +421,22 @@
                             <label>Cep Telefonu *</label>
                             <input type="text" id="custPhone">
                         </div>
-                        <div class="form-group" style="grid-column: span 2;">
-                            <label>Adres *</label>
-                            <textarea id="custAddress" rows="2"></textarea>
+                        <div class="form-group">
+                            <label>Müşteri Vadesi (gün) *</label>
+                            <input type="number" id="custVade" value="30" min="0" step="1">
                         </div>
                     </div>
-                    <button class="btn btn-primary" onclick="saveCustomer()">Alıcıyı Kaydet</button>
+
+                    <div class="mt-3">
+                        <label style="font-weight:600; margin-bottom:0.5rem; display:block;">Teslimat Adresleri (en az 1, en fazla 15)</label>
+                        <div id="custAddresses"></div>
+                        <button type="button" class="btn btn-outline btn-sm mt-2" onclick="addAddressField()">+ Adres Ekle</button>
+                    </div>
+
+                    <div class="mt-3 flex gap-2">
+                        <button class="btn btn-primary" id="btnSaveCustomer" onclick="saveCustomer()">Alıcıyı Kaydet</button>
+                        <button class="btn btn-secondary hidden" id="btnCancelEdit" onclick="cancelEditCustomer()">İptal</button>
+                    </div>
                 </div>
             </div>
             <div class="card">
@@ -396,7 +444,10 @@
                 <div class="card-body" style="overflow-x:auto;">
                     <table>
                         <thead>
-                            <tr><th>Ünvan</th><th>Yetkili</th><th>Mail</th><th>Telefon</th><th>Adres</th><th></th></tr>
+                            <tr>
+                                <th>Ünvan</th><th>Yetkili</th><th>Mail</th><th>Telefon</th>
+                                <th>Vade</th><th>Adres Sayısı</th><th>Kayıt Eden</th><th></th>
+                            </tr>
                         </thead>
                         <tbody id="customersTable"></tbody>
                     </table>
@@ -434,6 +485,12 @@
                             <input type="text" id="orderCustPhone">
                         </div>
                         <div class="form-group">
+                            <label>Kayıtlı Adres Seç</label>
+                            <select id="orderDeliveryAddressSelect" onchange="onDeliveryAddressSelect()">
+                                <option value="">-- Adres seçin --</option>
+                            </select>
+                        </div>
+                        <div class="form-group" style="grid-column: span 2;">
                             <label>Teslimat Adresi *</label>
                             <textarea id="orderDeliveryAddress" rows="2"></textarea>
                         </div>
@@ -470,6 +527,10 @@
                                 <option value="Kargo">Kargo</option>
                             </select>
                         </div>
+                        <div class="form-group">
+                            <label>KDV Oranı (%)</label>
+                            <input type="number" id="orderKdvOrani" value="20" min="0" max="100" step="1" oninput="calcGrandTotal()">
+                        </div>
                     </div>
 
                     <hr style="margin:1.5rem 0;border:none;border-top:1px solid var(--border);">
@@ -478,8 +539,20 @@
                     <div id="orderProducts"></div>
                     <button class="btn btn-outline btn-sm mt-2" onclick="addProductRow()">+ Ürün Ekle</button>
 
-                    <div class="mt-3" style="text-align:right;font-size:1.1rem;font-weight:600;">
-                        Genel Toplam: <span id="orderGrandTotal">0,00 ₺</span>
+                    <!-- TOPLAM KUTUSU -->
+                    <div class="totals-box">
+                        <div class="row">
+                            <span>Ara Toplam (KDV Hariç)</span>
+                            <span id="orderAraToplam">0,00 ₺</span>
+                        </div>
+                        <div class="row">
+                            <span>KDV (<span id="orderKdvLabel">20</span>%)</span>
+                            <span id="orderKdvTutari">0,00 ₺</span>
+                        </div>
+                        <div class="row grand">
+                            <span>Genel Toplam</span>
+                            <span id="orderGrandTotal">0,00 ₺</span>
+                        </div>
                     </div>
 
                     <div class="mt-3">
@@ -496,22 +569,46 @@
             <div class="card">
                 <div class="card-header">
                     <h2>Sipariş Listesi</h2>
-                    <select id="filterStatus" onchange="renderOrders()" style="width:auto;">
-                        <option value="">Tümü</option>
-                        <option value="Beklemede">Beklemede</option>
-                        <option value="Onaylandı">Onaylandı</option>
-                        <option value="Reddedildi">Reddedildi</option>
-                    </select>
                 </div>
-                <div class="card-body" style="overflow-x:auto;">
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>Sipariş No</th><th>Tarih</th><th>Alıcı</th><th>Tutar</th><th>Durum</th><th>İşlem</th>
-                            </tr>
-                        </thead>
-                        <tbody id="ordersTable"></tbody>
-                    </table>
+                <div class="card-body">
+                    <div class="grid-3" style="margin-bottom:1rem;">
+                        <div class="form-group">
+                            <label>Başlangıç Tarihi</label>
+                            <input type="date" id="filterDateStart" onchange="renderOrders()">
+                        </div>
+                        <div class="form-group">
+                            <label>Bitiş Tarihi</label>
+                            <input type="date" id="filterDateEnd" onchange="renderOrders()">
+                        </div>
+                        <div class="form-group">
+                            <label>Alıcı</label>
+                            <select id="filterCustomer" onchange="renderOrders()">
+                                <option value="">Tümü</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Durum</label>
+                            <select id="filterStatus" onchange="renderOrders()">
+                                <option value="">Tümü</option>
+                                <option value="Beklemede">Beklemede</option>
+                                <option value="Onaylandı">Onaylandı</option>
+                                <option value="Reddedildi">Reddedildi</option>
+                            </select>
+                        </div>
+                        <div class="form-group" style="display:flex; align-items:flex-end;">
+                            <button class="btn btn-outline btn-sm" onclick="clearOrderFilters()">Filtreleri Temizle</button>
+                        </div>
+                    </div>
+                    <div style="overflow-x:auto;">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Sipariş No</th><th>Tarih</th><th>Alıcı</th><th>Oluşturan</th><th>Tutar</th><th>Durum</th><th>İşlem</th>
+                                </tr>
+                            </thead>
+                            <tbody id="ordersTable"></tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
         </div>
@@ -536,8 +633,46 @@
             </div>
         </div>
 
-        <!-- AYARLAR -->
-        <div id="tab-settings" class="tab-content hidden">
+        <!-- KULLANICILAR (SADECE SÜPERVİZÖR/ADMİN) -->
+        <div id="tab-users" class="tab-content hidden admin-only">
+            <div class="card">
+                <div class="card-header"><h2>Yeni Kullanıcı Ekle / Güncelle</h2></div>
+                <div class="card-body">
+                    <div class="grid-3">
+                        <div class="form-group">
+                            <label>Kullanıcı Adı *</label>
+                            <input type="text" id="newUsername">
+                        </div>
+                        <div class="form-group">
+                            <label>Şifre *</label>
+                            <input type="password" id="newUserPass">
+                        </div>
+                        <div class="form-group">
+                            <label>Rol</label>
+                            <select id="newUserRole">
+                                <option value="user">Kullanıcı (Plasiyer)</option>
+                                <option value="admin">Süpervizör (Admin)</option>
+                            </select>
+                        </div>
+                    </div>
+                    <button class="btn btn-primary" onclick="saveUser()">Kullanıcıyı Kaydet</button>
+                </div>
+            </div>
+            <div class="card">
+                <div class="card-header"><h2>Sistem Kullanıcıları</h2></div>
+                <div class="card-body" style="overflow-x:auto;">
+                    <table>
+                        <thead>
+                            <tr><th>Kullanıcı Adı</th><th>Rol</th><th>Şifre</th><th>İşlem</th></tr>
+                        </thead>
+                        <tbody id="usersTable"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- AYARLAR (SADECE SÜPERVİZÖR/ADMİN) -->
+        <div id="tab-settings" class="tab-content hidden admin-only">
             <div class="card">
                 <div class="card-header"><h2>EmailJS Ayarları (Mail Göndermek İçin)</h2></div>
                 <div class="card-body">
@@ -595,8 +730,11 @@ const STORAGE = {
     products: 'sms_products',
     customers: 'sms_customers',
     orders: 'sms_orders',
-    settings: 'sms_settings'
+    settings: 'sms_settings',
+    users: 'sms_users'
 };
+
+let currentUser = null;
 
 function getData(key) {
     try { return JSON.parse(localStorage.getItem(key)) || []; } 
@@ -610,36 +748,159 @@ function getSettings() {
     return s ? JSON.parse(s) : {};
 }
 
-function login() {
-    const user = document.getElementById('loginUser').value.trim();
-    const pass = document.getElementById('loginPass').value;
-    if (user === 'admin' && pass === '1234') {
-        document.getElementById('loginScreen').classList.add('hidden');
-        document.getElementById('app').classList.remove('hidden');
-        initApp();
-    } else {
-        alert('Hatalı kullanıcı adı veya şifre!\nVarsayılan: admin / 1234');
+// Filtrelenmiş Kullanıcı Verilerini Alma Fonksiyonları
+function getUserCustomers() {
+    const all = getData(STORAGE.customers);
+    if (!currentUser || currentUser.role === 'admin') return all;
+    return all.filter(c => c.createdUser === currentUser.username);
+}
+
+function getUserOrders() {
+    const all = getData(STORAGE.orders);
+    if (!currentUser || currentUser.role === 'admin') return all;
+    return all.filter(o => o.createdUser === currentUser.username);
+}
+
+// Varsayılan admin kullanıcısını oluşturma
+function initDefaultUsers() {
+    let users = getData(STORAGE.users);
+    if (users.length === 0) {
+        users.push({ username: 'admin', pass: '1234', role: 'admin' });
+        setData(STORAGE.users, users);
     }
 }
+
+function login() {
+    initDefaultUsers();
+    const userVal = document.getElementById('loginUser').value.trim();
+    const passVal = document.getElementById('loginPass').value;
+    const users = getData(STORAGE.users);
+
+    const foundUser = users.find(u => u.username.toLowerCase() === userVal.toLowerCase() && u.pass === passVal);
+
+    if (foundUser) {
+        currentUser = foundUser;
+        document.getElementById('loginScreen').classList.add('hidden');
+        document.getElementById('app').classList.remove('hidden');
+        
+        document.getElementById('currentUserDisplay').textContent = `${currentUser.username} (${currentUser.role === 'admin' ? 'Süpervizör' : 'Kullanıcı'})`;
+        
+        const adminElements = document.querySelectorAll('.admin-only');
+        if (currentUser.role === 'admin') {
+            adminElements.forEach(el => el.classList.remove('hidden'));
+        } else {
+            adminElements.forEach(el => el.classList.add('hidden'));
+        }
+
+        initApp();
+    } else {
+        alert('Hatalı kullanıcı adı veya şifre!');
+    }
+}
+
 function logout() {
+    currentUser = null;
+    document.getElementById('loginUser').value = '';
+    document.getElementById('loginPass').value = '';
     document.getElementById('app').classList.add('hidden');
     document.getElementById('loginScreen').classList.remove('hidden');
 }
 
+function saveUser() {
+    if (!currentUser || currentUser.role !== 'admin') {
+        alert('Bu işlem için Süpervizör yetkisi gereklidir.');
+        return;
+    }
+
+    const username = document.getElementById('newUsername').value.trim();
+    const pass = document.getElementById('newUserPass').value.trim();
+    const role = document.getElementById('newUserRole').value;
+
+    if (!username || !pass) {
+        alert('Lütfen kullanıcı adı ve şifre girin.');
+        return;
+    }
+
+    let users = getData(STORAGE.users);
+    const existingIndex = users.findIndex(u => u.username.toLowerCase() === username.toLowerCase());
+
+    if (existingIndex >= 0) {
+        users[existingIndex].pass = pass;
+        users[existingIndex].role = role;
+        alert(`${username} kullanıcısının şifresi ve rolü güncellendi.`);
+    } else {
+        users.push({ username, pass, role });
+        alert(`${username} kullanıcısı oluşturuldu.`);
+    }
+
+    setData(STORAGE.users, users);
+    document.getElementById('newUsername').value = '';
+    document.getElementById('newUserPass').value = '';
+    renderUsers();
+}
+
+function deleteUser(idx) {
+    if (!currentUser || currentUser.role !== 'admin') return;
+    let users = getData(STORAGE.users);
+    
+    if (users[idx].username === currentUser.username) {
+        alert('Aktif olarak oturum açtığınız kendi hesabınızı silemezsiniz.');
+        return;
+    }
+
+    if (!confirm(`${users[idx].username} kullanıcısını silmek istediğinize emin misiniz?`)) return;
+    
+    users.splice(idx, 1);
+    setData(STORAGE.users, users);
+    renderUsers();
+}
+
+function renderUsers() {
+    if (!currentUser || currentUser.role !== 'admin') return;
+    const users = getData(STORAGE.users);
+    const tbody = document.getElementById('usersTable');
+    if (users.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="4" class="empty-state">Henüz kullanıcı tanımlanmadı.</td></tr>`;
+        return;
+    }
+    tbody.innerHTML = users.map((u, i) => `
+        <tr>
+            <td><strong>${u.username}</strong></td>
+            <td><span class="badge ${u.role === 'admin' ? 'badge-approved' : 'badge-pending'}">${u.role === 'admin' ? 'Süpervizör' : 'Kullanıcı'}</span></td>
+            <td>••••••••</td>
+            <td><button class="btn btn-danger btn-sm" onclick="deleteUser(${i})">Sil</button></td>
+        </tr>
+    `).join('');
+}
+
 function showTab(tabId) {
+    // Yetki kontrolü
+    const adminOnlyTabs = ['buyerView', 'users', 'settings'];
+    if (adminOnlyTabs.includes(tabId) && (!currentUser || currentUser.role !== 'admin')) {
+        alert('Bu bölüme erişim yetkiniz yok.');
+        return;
+    }
+
     document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
     document.querySelectorAll('.nav-tab').forEach(el => el.classList.remove('active'));
     document.getElementById('tab-' + tabId).classList.remove('hidden');
-    document.querySelector(`.nav-tab[data-tab="${tabId}"]`).classList.add('active');
+    const tabBtn = document.querySelector(`.nav-tab[data-tab="${tabId}"]`);
+    if (tabBtn) tabBtn.classList.add('active');
 
     if (tabId === 'dashboard') updateDashboard();
     if (tabId === 'products') renderProducts();
-    if (tabId === 'customers') renderCustomers();
+    if (tabId === 'customers') {
+        renderCustomers();
+        if (document.getElementById('custAddresses').children.length === 0) {
+            addAddressField();
+        }
+    }
     if (tabId === 'newOrder') {
         populateCustomerSelect();
         if (document.getElementById('orderProducts').children.length === 0) addProductRow();
     }
     if (tabId === 'orders') renderOrders();
+    if (tabId === 'users') renderUsers();
     if (tabId === 'settings') loadSettingsForm();
 }
 
@@ -664,28 +925,95 @@ function saveSettings() {
     alert('Ayarlar kaydedildi!');
 }
 
+function fixTurkishMojibake(text) {
+    // UTF-8 olarak kaydedilmiş ama aslında CP1254 olan bozuk metni onar
+    // Örnek: "KAÐIT" → "KAĞIT", "PLASTÝK" → "PLASTİK", "ÞİŞ" → "ŞİŞ"
+    const hasMojibake = /[ÐÝÞðýþ]/.test(text) || text.includes('KAÐIT') || text.includes('PLASTÝK');
+    if (!hasMojibake) return text;
+    try {
+        // latin-1 ile byte'lara çevir, sonra Windows-1254 olarak oku
+        const bytes = new Uint8Array(text.length);
+        for (let i = 0; i < text.length; i++) {
+            const code = text.charCodeAt(i);
+            if (code > 255) return text; // gerçek unicode varsa dokunma
+            bytes[i] = code;
+        }
+        return new TextDecoder('windows-1254').decode(bytes);
+    } catch (e) {
+        return text;
+    }
+}
+
+function decodeCSVText(buffer) {
+    let text = '';
+
+    // 1) UTF-8 dene
+    try {
+        const utf8 = new TextDecoder('utf-8', { fatal: true }).decode(buffer);
+        if (!utf8.includes('\uFFFD')) {
+            text = utf8;
+        }
+    } catch (e) { /* UTF-8 değil */ }
+
+    // 2) Windows-1254
+    if (!text) {
+        try {
+            text = new TextDecoder('windows-1254').decode(buffer);
+        } catch (e) { /* */ }
+    }
+
+    // 3) ISO-8859-9
+    if (!text) {
+        try {
+            text = new TextDecoder('iso-8859-9').decode(buffer);
+        } catch (e) { /* */ }
+    }
+
+    // 4) Son çare
+    if (!text) {
+        text = new TextDecoder('utf-8').decode(buffer);
+    }
+
+    // Mojibake onarımı (dosya UTF-8 kaydedilmiş ama karakterler bozulmuşsa)
+    return fixTurkishMojibake(text);
+}
+
+function parseTRNumber(str) {
+    // "1.050,00" → 1050.00 | "30,00" → 30 | "190" → 190
+    if (str == null || str === '') return 0;
+    let s = String(str).trim().replace(/\s/g, '');
+    // Binlik noktaları kaldır, ondalık virgülü noktaya çevir
+    if (s.includes(',')) {
+        s = s.replace(/\./g, '').replace(',', '.');
+    }
+    return parseFloat(s) || 0;
+}
+
 function loadCSV(e) {
     const file = e.target.files[0];
     if (!file) return;
     const reader = new FileReader();
     reader.onload = function(ev) {
-        const text = ev.target.result;
+        const buffer = ev.target.result;
+        const text = decodeCSVText(buffer);
         const lines = text.split(/\r?\n/).filter(l => l.trim());
         let products = getData(STORAGE.products);
         let added = 0;
         lines.forEach((line, idx) => {
-            if (idx === 0 && (line.toLowerCase().includes('kod') || line.toLowerCase().includes('ürün'))) return;
+            if (idx === 0 && (line.toLowerCase().includes('kod') || line.toLowerCase().includes('ürün') || line.toLowerCase().includes('urun'))) return;
             const parts = line.split(/[;,]/).map(p => p.trim().replace(/^"|"$/g, ''));
             if (parts.length < 7) return;
             const [kod, aciklama, barkod, paket, koli, palet, fiyat] = parts;
             if (!kod) return;
             const existing = products.findIndex(p => p.kod === kod);
             const item = {
-                kod, aciklama: aciklama || '', barkod: barkod || '',
-                paketIci: parseFloat(paket) || 0,
-                koliIci: parseFloat(koli) || 0,
-                paletIci: parseFloat(palet) || 0,
-                fiyat: parseFloat(fiyat.replace(',', '.')) || 0
+                kod,
+                aciklama: aciklama || '',
+                barkod: barkod || '',
+                paketIci: parseTRNumber(paket),
+                koliIci: parseTRNumber(koli),
+                paletIci: parseTRNumber(palet),
+                fiyat: parseTRNumber(fiyat)
             };
             if (existing >= 0) products[existing] = item;
             else { products.push(item); added++; }
@@ -695,7 +1023,7 @@ function loadCSV(e) {
         alert(`${added} yeni ürün eklendi. Toplam: ${products.length}`);
         e.target.value = '';
     };
-    reader.readAsText(file, 'UTF-8');
+    reader.readAsArrayBuffer(file);
 }
 
 function renderProducts() {
@@ -705,6 +1033,7 @@ function renderProducts() {
         tbody.innerHTML = `<tr><td colspan="8" class="empty-state">Henüz ürün yüklenmedi.</td></tr>`;
         return;
     }
+    const isAdmin = currentUser && currentUser.role === 'admin';
     tbody.innerHTML = products.map((p, i) => `
         <tr>
             <td><strong>${p.kod}</strong></td>
@@ -714,11 +1043,12 @@ function renderProducts() {
             <td>${p.koliIci}</td>
             <td>${p.paletIci}</td>
             <td>${formatMoney(p.fiyat)}</td>
-            <td><button class="btn btn-danger btn-sm" onclick="deleteProduct(${i})">Sil</button></td>
+            <td>${isAdmin ? `<button class="btn btn-danger btn-sm" onclick="deleteProduct(${i})">Sil</button>` : ''}</td>
         </tr>
     `).join('');
 }
 function deleteProduct(idx) {
+    if (!currentUser || currentUser.role !== 'admin') return;
     if (!confirm('Bu ürünü silmek istediğinize emin misiniz?')) return;
     let products = getData(STORAGE.products);
     products.splice(idx, 1);
@@ -726,9 +1056,51 @@ function deleteProduct(idx) {
     renderProducts();
 }
 function clearProducts() {
+    if (!currentUser || currentUser.role !== 'admin') return;
     if (!confirm('Tüm ürünler silinecek. Emin misiniz?')) return;
     setData(STORAGE.products, []);
     renderProducts();
+}
+
+// ----- ALICI ADRES YÖNETİMİ -----
+function addAddressField(value = '') {
+    const container = document.getElementById('custAddresses');
+    const count = container.querySelectorAll('.address-item').length;
+    if (count >= 15) {
+        alert('En fazla 15 adres ekleyebilirsiniz.');
+        return;
+    }
+    const div = document.createElement('div');
+    div.className = 'address-item flex gap-2 mt-2';
+    div.innerHTML = `
+        <textarea class="cust-address-input" rows="2" placeholder="Teslimat adresi ${count + 1}" style="flex:1;">${value || ''}</textarea>
+        <button type="button" class="btn btn-danger btn-sm" onclick="this.parentElement.remove()" style="align-self:start;">✕</button>
+    `;
+    container.appendChild(div);
+}
+
+function getAddressValues() {
+    return Array.from(document.querySelectorAll('.cust-address-input'))
+        .map(el => el.value.trim())
+        .filter(v => v.length > 0);
+}
+
+function resetCustomerForm() {
+    document.getElementById('custEditId').value = '';
+    document.getElementById('custTitle').value = '';
+    document.getElementById('custContact').value = '';
+    document.getElementById('custEmail').value = '';
+    document.getElementById('custPhone').value = '';
+    document.getElementById('custVade').value = '30';
+    document.getElementById('custAddresses').innerHTML = '';
+    addAddressField();
+    document.getElementById('customerFormTitle').textContent = 'Yeni Alıcı Kaydet';
+    document.getElementById('btnSaveCustomer').textContent = 'Alıcıyı Kaydet';
+    document.getElementById('btnCancelEdit').classList.add('hidden');
+}
+
+function cancelEditCustomer() {
+    resetCustomerForm();
 }
 
 function saveCustomer() {
@@ -736,59 +1108,176 @@ function saveCustomer() {
     const contact = document.getElementById('custContact').value.trim();
     const email = document.getElementById('custEmail').value.trim();
     const phone = document.getElementById('custPhone').value.trim();
-    const address = document.getElementById('custAddress').value.trim();
-    if (!title || !contact || !email || !phone || !address) {
-        alert('Lütfen tüm zorunlu alanları doldurun.');
+    const vade = parseInt(document.getElementById('custVade').value) || 30;
+    const addresses = getAddressValues();
+    const editId = document.getElementById('custEditId').value;
+
+    if (!title || !contact || !email || !phone) {
+        alert('Lütfen ünvan, yetkili, mail ve telefon alanlarını doldurun.');
         return;
     }
+    if (addresses.length === 0) {
+        alert('En az bir teslimat adresi girmeniz gerekir.');
+        return;
+    }
+
     let customers = getData(STORAGE.customers);
-    customers.push({ id: Date.now(), title, contact, email, phone, address });
-    setData(STORAGE.customers, customers);
-    ['custTitle','custContact','custEmail','custPhone','custAddress'].forEach(id => document.getElementById(id).value = '');
+
+    if (editId) {
+        // Güncelleme
+        const idx = customers.findIndex(c => c.id == editId);
+        if (idx < 0) {
+            alert('Düzenlenecek alıcı bulunamadı.');
+            return;
+        }
+        if (currentUser.role !== 'admin' && customers[idx].createdUser !== currentUser.username) {
+            alert('Başka bir kullanıcının kaydettiği alıcıyı düzenleyemezsiniz.');
+            return;
+        }
+        customers[idx] = {
+            ...customers[idx],
+            title,
+            contact,
+            email,
+            phone,
+            vade,
+            addresses,
+            address: addresses[0] // geriye uyumluluk
+        };
+        setData(STORAGE.customers, customers);
+        alert('Alıcı bilgileri güncellendi.');
+    } else {
+        // Yeni kayıt
+        customers.push({
+            id: Date.now(),
+            title,
+            contact,
+            email,
+            phone,
+            vade,
+            addresses,
+            address: addresses[0],
+            createdUser: currentUser ? currentUser.username : 'admin'
+        });
+        setData(STORAGE.customers, customers);
+        alert('Alıcı kaydedildi.');
+    }
+
+    resetCustomerForm();
     renderCustomers();
-    alert('Alıcı kaydedildi.');
 }
-function renderCustomers() {
+
+function editCustomer(id) {
     const customers = getData(STORAGE.customers);
+    const c = customers.find(x => x.id == id);
+    if (!c) return;
+
+    if (currentUser.role !== 'admin' && c.createdUser !== currentUser.username) {
+        alert('Başka bir kullanıcının kaydettiği alıcıyı düzenleyemezsiniz.');
+        return;
+    }
+
+    document.getElementById('custEditId').value = c.id;
+    document.getElementById('custTitle').value = c.title || '';
+    document.getElementById('custContact').value = c.contact || '';
+    document.getElementById('custEmail').value = c.email || '';
+    document.getElementById('custPhone').value = c.phone || '';
+    document.getElementById('custVade').value = c.vade != null ? c.vade : 30;
+
+    const container = document.getElementById('custAddresses');
+    container.innerHTML = '';
+    const addrs = (c.addresses && c.addresses.length) ? c.addresses : (c.address ? [c.address] : ['']);
+    addrs.forEach(a => addAddressField(a));
+
+    document.getElementById('customerFormTitle').textContent = 'Alıcıyı Düzenle';
+    document.getElementById('btnSaveCustomer').textContent = 'Değişiklikleri Kaydet';
+    document.getElementById('btnCancelEdit').classList.remove('hidden');
+
+    // Forma kaydır
+    document.getElementById('customerFormTitle').scrollIntoView({ behavior: 'smooth' });
+}
+
+function renderCustomers() {
+    const customers = getUserCustomers();
     const tbody = document.getElementById('customersTable');
     if (customers.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="6" class="empty-state">Henüz alıcı yok.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="8" class="empty-state">Kayıtlı alıcı bulunamadı.</td></tr>`;
         return;
     }
-    tbody.innerHTML = customers.map((c, i) => `
+    tbody.innerHTML = customers.map((c) => {
+        const addrCount = (c.addresses && c.addresses.length) ? c.addresses.length : (c.address ? 1 : 0);
+        const vadeText = c.vade != null ? c.vade + ' gün' : '-';
+        return `
         <tr>
             <td><strong>${c.title}</strong></td>
             <td>${c.contact}</td>
             <td>${c.email}</td>
             <td>${c.phone}</td>
-            <td>${c.address}</td>
-            <td><button class="btn btn-danger btn-sm" onclick="deleteCustomer(${i})">Sil</button></td>
-        </tr>
-    `).join('');
+            <td>${vadeText}</td>
+            <td>${addrCount}</td>
+            <td><small class="text-muted">${c.createdUser || 'admin'}</small></td>
+            <td>
+                <button class="btn btn-outline btn-sm" onclick="editCustomer(${c.id})">Düzenle</button>
+                <button class="btn btn-danger btn-sm" onclick="deleteCustomer(${c.id})">Sil</button>
+            </td>
+        </tr>`;
+    }).join('');
 }
-function deleteCustomer(idx) {
+
+function deleteCustomer(id) {
     if (!confirm('Bu alıcıyı silmek istediğinize emin misiniz?')) return;
     let customers = getData(STORAGE.customers);
-    customers.splice(idx, 1);
-    setData(STORAGE.customers, customers);
-    renderCustomers();
+    const idx = customers.findIndex(c => c.id === id);
+    if (idx >= 0) {
+        if (currentUser.role !== 'admin' && customers[idx].createdUser !== currentUser.username) {
+            alert('Başka bir kullanıcının kaydettiği alıcıyı silemezsiniz.');
+            return;
+        }
+        customers.splice(idx, 1);
+        setData(STORAGE.customers, customers);
+        renderCustomers();
+    }
 }
+
 function populateCustomerSelect() {
-    const customers = getData(STORAGE.customers);
+    const customers = getUserCustomers();
     const sel = document.getElementById('orderCustomerSelect');
     sel.innerHTML = '<option value="">-- Yeni / Seçiniz --</option>' +
         customers.map(c => `<option value="${c.id}">${c.title}</option>`).join('');
 }
+
 function fillCustomer() {
     const id = document.getElementById('orderCustomerSelect').value;
     if (!id) return;
-    const c = getData(STORAGE.customers).find(x => x.id == id);
+    const c = getUserCustomers().find(x => x.id == id);
     if (!c) return;
     document.getElementById('orderCustTitle').value = c.title;
     document.getElementById('orderCustContact').value = c.contact;
     document.getElementById('orderCustEmail').value = c.email;
     document.getElementById('orderCustPhone').value = c.phone;
-    document.getElementById('orderDeliveryAddress').value = c.address;
+    document.getElementById('orderVade').value = c.vade != null ? c.vade : 30;
+
+    // Adres seçimi
+    const addrSelect = document.getElementById('orderDeliveryAddressSelect');
+    const addresses = (c.addresses && c.addresses.length) ? c.addresses : (c.address ? [c.address] : []);
+    if (addrSelect) {
+        addrSelect.innerHTML = addresses.map((a, i) => `<option value="${i}">${a.substring(0, 60)}${a.length > 60 ? '...' : ''}</option>`).join('');
+        if (addresses.length > 0) {
+            document.getElementById('orderDeliveryAddress').value = addresses[0];
+        }
+    } else {
+        document.getElementById('orderDeliveryAddress').value = addresses[0] || '';
+    }
+}
+
+function onDeliveryAddressSelect() {
+    const id = document.getElementById('orderCustomerSelect').value;
+    if (!id) return;
+    const c = getUserCustomers().find(x => x.id == id);
+    if (!c) return;
+    const addresses = (c.addresses && c.addresses.length) ? c.addresses : (c.address ? [c.address] : []);
+    const idx = parseInt(document.getElementById('orderDeliveryAddressSelect').value) || 0;
+    document.getElementById('orderDeliveryAddress').value = addresses[idx] || '';
 }
 
 let productRowCounter = 0;
@@ -846,13 +1335,28 @@ function calcRow(rowId) {
     document.getElementById(`total_${rowId}`).value = formatMoney(amount);
     calcGrandTotal();
 }
+function parseMoney(str) {
+    if (!str) return 0;
+    // Türkçe format: binlik ayırıcı nokta (.), ondalık ayırıcı virgül (,)
+    // Önce tüm noktaları kaldır, sonra virgülü noktaya çevir
+    const cleaned = String(str).replace(/\./g, '').replace(',', '.');
+    return parseFloat(cleaned) || 0;
+}
+
 function calcGrandTotal() {
-    let total = 0;
+    let araToplam = 0;
     document.querySelectorAll('[id^="total_"]').forEach(el => {
-        const val = el.value.replace(/[^\d,.-]/g, '').replace(',', '.');
-        total += parseFloat(val) || 0;
+        araToplam += parseMoney(el.value);
     });
-    document.getElementById('orderGrandTotal').textContent = formatMoney(total) + ' ₺';
+
+    const kdvOrani = parseFloat(document.getElementById('orderKdvOrani').value) || 0;
+    const kdvTutari = araToplam * (kdvOrani / 100);
+    const genelToplam = araToplam + kdvTutari;
+
+    document.getElementById('orderAraToplam').textContent = formatMoney(araToplam) + ' ₺';
+    document.getElementById('orderKdvLabel').textContent = kdvOrani;
+    document.getElementById('orderKdvTutari').textContent = formatMoney(kdvTutari) + ' ₺';
+    document.getElementById('orderGrandTotal').textContent = formatMoney(genelToplam) + ' ₺';
 }
 
 async function createOrder() {
@@ -870,7 +1374,7 @@ async function createOrder() {
 
     const rows = document.querySelectorAll('[id^="prodRow_"]');
     const items = [];
-    let grandTotal = 0;
+    let araToplam = 0;
 
     rows.forEach(row => {
         const id = row.id.split('_')[1];
@@ -883,7 +1387,7 @@ async function createOrder() {
         for (let i = 1; i <= 5; i++) isks.push(parseFloat(document.getElementById(`isk${i}_${id}`).value) || 0);
         let amount = qty * price;
         isks.forEach(isk => amount *= (1 - isk / 100));
-        grandTotal += amount;
+        araToplam += amount;
         items.push({ kod, aciklama: p ? p.aciklama : '', qty, price, isks, amount });
     });
 
@@ -891,6 +1395,10 @@ async function createOrder() {
         alert('En az bir ürün seçmelisiniz.');
         return;
     }
+
+    const kdvOrani = parseFloat(document.getElementById('orderKdvOrani').value) || 0;
+    const kdvTutari = araToplam * (kdvOrani / 100);
+    const grandTotal = araToplam + kdvTutari;
 
     const now = new Date();
     const dateStr = now.toISOString().slice(0,10).replace(/-/g,'');
@@ -908,10 +1416,14 @@ async function createOrder() {
         payment: document.getElementById('orderPayment').value,
         deliveryType: document.getElementById('orderDeliveryType').value,
         items,
+        araToplam,
+        kdvOrani,
+        kdvTutari,
         grandTotal,
         status: 'Beklemede',
         rejectReason: '',
-        responseDate: null
+        responseDate: null,
+        createdUser: currentUser ? currentUser.username : 'admin'
     };
 
     const btn = document.getElementById('btnCreateOrder');
@@ -927,7 +1439,7 @@ async function createOrder() {
     btn.textContent = 'Siparişi Oluştur ve Mail Gönder';
 
     if (mailSent) {
-        alert(`✅ Sipariş oluşturuldu ve alıcıya mail gönderildi!\n\nSipariş No: ${orderNo}`);
+        alert(`✅ Sipariş oluşturuldu ve alıcıya mail gönderildi!\n\nSipariş No: ${orderNo}\nGenel Toplam: ${formatMoney(grandTotal)} ₺`);
     } else {
         alert(`⚠️ Sipariş kaydedildi ama mail gönderilemedi.\n\nSipariş No: ${orderNo}\n\nAyarlar sekmesinden EmailJS bilgilerini kontrol edin.`);
     }
@@ -935,6 +1447,7 @@ async function createOrder() {
     document.getElementById('orderProducts').innerHTML = '';
     productRowCounter = 0;
     addProductRow();
+    calcGrandTotal();
     showTab('orders');
 }
 
@@ -951,7 +1464,6 @@ async function sendOrderEmail(order) {
         return `${i.kod} | ${i.aciklama} | ${i.qty} adet | ${formatMoney(i.price)} ₺ | ${iskText} | ${formatMoney(i.amount)} ₺`;
     }).join('\n');
 
-    // Onay linkini oluşturma (sayfanın kendi adresine sipariş numarasını ekler)
     const baseUrl = window.location.origin + window.location.pathname; 
     const approvalLink = `${baseUrl}?orderNo=${order.no}`;
 
@@ -968,15 +1480,18 @@ async function sendOrderEmail(order) {
         delivery_type: order.deliveryType,
         delivery_address: order.deliveryAddress,
         items_table: itemsTable,
+        ara_toplam: formatMoney(order.araToplam),
+        kdv_orani: order.kdvOrani,
+        kdv_tutari: formatMoney(order.kdvTutari),
         grand_total: formatMoney(order.grandTotal),
         seller_name: settings.sellerCompany || 'Satıcı',
         reply_to: settings.sellerEmail || '',
-        approval_link: approvalLink // <-- Onay Linki Parametresi Eklendi[cite: 1]
+        approval_link: approvalLink
     };
 
     try {
         emailjs.init(settings.publicKey);
-        const response = await emailjs.send(settings.serviceId, settings.templateId, templateParams);
+        await emailjs.send(settings.serviceId, settings.templateId, templateParams);
         return true;
     } catch (error) {
         console.error("EmailJS Hatası:", error);
@@ -989,33 +1504,96 @@ async function sendOrderEmail(order) {
     }
 }
 
+function populateOrderCustomerFilter() {
+    const customers = getUserCustomers();
+    const sel = document.getElementById('filterCustomer');
+    if (!sel) return;
+    const current = sel.value;
+    sel.innerHTML = '<option value="">Tümü</option>' +
+        customers.map(c => `<option value="${c.title}">${c.title}</option>`).join('');
+    if (current) sel.value = current;
+}
+
+function clearOrderFilters() {
+    document.getElementById('filterDateStart').value = '';
+    document.getElementById('filterDateEnd').value = '';
+    document.getElementById('filterCustomer').value = '';
+    document.getElementById('filterStatus').value = '';
+    renderOrders();
+}
+
 function renderOrders() {
-    let orders = getData(STORAGE.orders);
-    const filter = document.getElementById('filterStatus').value;
-    if (filter) orders = orders.filter(o => o.status === filter);
+    let orders = getUserOrders();
+
+    // Durum filtresi
+    const statusFilter = document.getElementById('filterStatus')?.value;
+    if (statusFilter) orders = orders.filter(o => o.status === statusFilter);
+
+    // Alıcı filtresi
+    const customerFilter = document.getElementById('filterCustomer')?.value;
+    if (customerFilter) {
+        orders = orders.filter(o => o.customer && o.customer.title === customerFilter);
+    }
+
+    // Tarih aralığı filtresi
+    const dateStart = document.getElementById('filterDateStart')?.value;
+    const dateEnd = document.getElementById('filterDateEnd')?.value;
+    if (dateStart) {
+        const start = new Date(dateStart);
+        start.setHours(0, 0, 0, 0);
+        orders = orders.filter(o => new Date(o.date) >= start);
+    }
+    if (dateEnd) {
+        const end = new Date(dateEnd);
+        end.setHours(23, 59, 59, 999);
+        orders = orders.filter(o => new Date(o.date) <= end);
+    }
+
+    // Filtre select'ini doldur
+    populateOrderCustomerFilter();
 
     const tbody = document.getElementById('ordersTable');
     if (orders.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="6" class="empty-state">Sipariş bulunamadı.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="7" class="empty-state">Sipariş bulunamadı.</td></tr>`;
         return;
     }
+    const isAdmin = currentUser && currentUser.role === 'admin';
     tbody.innerHTML = orders.map(o => `
         <tr>
             <td><strong>${o.no}</strong></td>
             <td>${formatDate(o.date)}</td>
             <td>${o.customer.title}</td>
+            <td><small class="text-muted">${o.createdUser || 'admin'}</small></td>
             <td>${formatMoney(o.grandTotal)} ₺</td>
             <td><span class="badge badge-${o.status === 'Beklemede' ? 'pending' : o.status === 'Onaylandı' ? 'approved' : 'rejected'}">${o.status}</span></td>
             <td>
                 <button class="btn btn-outline btn-sm" onclick="viewOrder('${o.no}')">Detay</button>
                 ${o.status === 'Onaylandı' ? `<button class="btn btn-success btn-sm" onclick="downloadPDF('${o.no}')">PDF</button>` : ''}
+                ${isAdmin ? `<button class="btn btn-danger btn-sm" onclick="deleteOrder('${o.no}')">Sil</button>` : ''}
             </td>
         </tr>
     `).join('');
 }
 
+function deleteOrder(no) {
+    if (!currentUser || currentUser.role !== 'admin') {
+        alert('Bu işlem için Süpervizör yetkisi gereklidir.');
+        return;
+    }
+    if (!confirm(`"${no}" numaralı siparişi silmek istediğinize emin misiniz?`)) return;
+    let orders = getData(STORAGE.orders);
+    const idx = orders.findIndex(o => o.no === no);
+    if (idx >= 0) {
+        orders.splice(idx, 1);
+        setData(STORAGE.orders, orders);
+        renderOrders();
+        updateDashboard();
+        alert('Sipariş silindi.');
+    }
+}
+
 function viewOrder(no) {
-    const o = getData(STORAGE.orders).find(x => x.no === no);
+    const o = getUserOrders().find(x => x.no === no);
     if (!o) return;
 
     let itemsHtml = o.items.map(i => `
@@ -1028,6 +1606,10 @@ function viewOrder(no) {
             <td class="text-right">${formatMoney(i.amount)}</td>
         </tr>
     `).join('');
+
+    const kdvOrani = o.kdvOrani != null ? o.kdvOrani : 20;
+    const araToplam = o.araToplam != null ? o.araToplam : (o.grandTotal / 1.2);
+    const kdvTutari = o.kdvTutari != null ? o.kdvTutari : (o.grandTotal - araToplam);
 
     document.getElementById('modalTitle').textContent = `Sipariş: ${o.no}`;
     document.getElementById('modalBody').innerHTML = `
@@ -1044,15 +1626,22 @@ function viewOrder(no) {
         <table>
             <thead><tr><th>Kod</th><th>Açıklama</th><th>Miktar</th><th>Fiyat</th><th>İskontolar</th><th>Tutar</th></tr></thead>
             <tbody>${itemsHtml}</tbody>
-            <tfoot><tr><td colspan="5" class="text-right"><strong>Genel Toplam</strong></td><td class="text-right"><strong>${formatMoney(o.grandTotal)} ₺</strong></td></tr></tfoot>
         </table>
+        <div class="totals-box" style="margin-top:1rem;">
+            <div class="row"><span>Ara Toplam (KDV Hariç)</span><span>${formatMoney(araToplam)} ₺</span></div>
+            <div class="row"><span>KDV (%${kdvOrani})</span><span>${formatMoney(kdvTutari)} ₺</span></div>
+            <div class="row grand"><span>Genel Toplam</span><span>${formatMoney(o.grandTotal)} ₺</span></div>
+        </div>
         <div class="mt-3">
             <strong>Durum:</strong> <span class="badge badge-${o.status === 'Beklemede' ? 'pending' : o.status === 'Onaylandı' ? 'approved' : 'rejected'}">${o.status}</span>
             ${o.rejectReason ? `<br><strong>Ret Nedeni:</strong> ${o.rejectReason}` : ''}
+            ${o.createdUser ? `<br><small class="text-muted">Oluşturan Kullanıcı: ${o.createdUser}</small>` : ''}
         </div>
     `;
+    const isAdmin = currentUser && currentUser.role === 'admin';
     document.getElementById('modalFooter').innerHTML = `
         ${o.status === 'Onaylandı' ? `<button class="btn btn-success" onclick="downloadPDF('${o.no}')">PDF İndir</button>` : ''}
+        ${isAdmin ? `<button class="btn btn-danger" onclick="deleteOrder('${o.no}'); closeModal();">Siparişi Sil</button>` : ''}
         <button class="btn btn-secondary" onclick="closeModal()">Kapat</button>
     `;
     document.getElementById('orderModal').classList.remove('hidden');
@@ -1082,6 +1671,10 @@ function loadBuyerOrder() {
         </tr>
     `).join('');
 
+    const kdvOrani = o.kdvOrani != null ? o.kdvOrani : 20;
+    const araToplam = o.araToplam != null ? o.araToplam : (o.grandTotal / 1.2);
+    const kdvTutari = o.kdvTutari != null ? o.kdvTutari : (o.grandTotal - araToplam);
+
     detail.innerHTML = `
         <div class="card" style="margin:0;">
             <div class="card-body">
@@ -1091,8 +1684,12 @@ function loadBuyerOrder() {
                 <table class="mt-2">
                     <thead><tr><th>Kod</th><th>Açıklama</th><th>Miktar</th><th>Fiyat</th><th>Tutar</th></tr></thead>
                     <tbody>${itemsHtml}</tbody>
-                    <tfoot><tr><td colspan="4" class="text-right"><strong>Toplam</strong></td><td><strong>${formatMoney(o.grandTotal)} ₺</strong></td></tr></tfoot>
                 </table>
+                <div class="totals-box" style="margin-top:1rem;">
+                    <div class="row"><span>Ara Toplam (KDV Hariç)</span><span>${formatMoney(araToplam)} ₺</span></div>
+                    <div class="row"><span>KDV (%${kdvOrani})</span><span>${formatMoney(kdvTutari)} ₺</span></div>
+                    <div class="row grand"><span>Genel Toplam</span><span>${formatMoney(o.grandTotal)} ₺</span></div>
+                </div>
                 <div class="mt-3 flex gap-2">
                     <button class="btn btn-success" onclick="buyerRespond('${o.no}', true)">✅ ONAYLA</button>
                     <button class="btn btn-danger" onclick="showRejectForm()">❌ RET</button>
@@ -1133,7 +1730,7 @@ function buyerRespond(no, approved) {
 }
 
 function downloadPDF(no) {
-    const o = getData(STORAGE.orders).find(x => x.no === no);
+    const o = getUserOrders().find(x => x.no === no);
     if (!o || o.status !== 'Onaylandı') {
         alert('Sadece onaylanmış siparişler PDF alınabilir.');
         return;
@@ -1169,16 +1766,28 @@ function downloadPDF(no) {
         i.kod, i.aciklama, i.qty.toString(), formatMoney(i.price),
         i.isks.filter(x => x > 0).map(v => `%${v}`).join('+') || '-', formatMoney(i.amount)
     ]);
+
+    const kdvOrani = o.kdvOrani != null ? o.kdvOrani : 20;
+    const araToplam = o.araToplam != null ? o.araToplam : (o.grandTotal / 1.2);
+    const kdvTutari = o.kdvTutari != null ? o.kdvTutari : (o.grandTotal - araToplam);
+
     doc.autoTable({
         startY: 118,
         head: [['Kod', 'Açıklama', 'Miktar', 'Birim Fiyat', 'İskontolar', 'Tutar']],
         body: tableData,
-        foot: [['', '', '', '', 'GENEL TOPLAM', formatMoney(o.grandTotal) + ' ₺']],
         theme: 'grid',
         headStyles: { fillColor: [30, 64, 175] },
-        footStyles: { fillColor: [241, 245, 249], textColor: [0,0,0], fontStyle: 'bold' },
         styles: { fontSize: 9 }
     });
+
+    const finalY = doc.lastAutoTable.finalY + 10;
+    doc.setFontSize(10);
+    doc.text(`Ara Toplam (KDV Hariç): ${formatMoney(araToplam)} ₺`, 14, finalY);
+    doc.text(`KDV (%${kdvOrani}): ${formatMoney(kdvTutari)} ₺`, 14, finalY + 6);
+    doc.setFont(undefined, 'bold');
+    doc.setFontSize(11);
+    doc.text(`GENEL TOPLAM: ${formatMoney(o.grandTotal)} ₺`, 14, finalY + 14);
+
     doc.save(`${o.no}_Onayli_Siparis.pdf`);
 }
 
@@ -1193,8 +1802,8 @@ function formatDate(iso) {
 
 function updateDashboard() {
     const products = getData(STORAGE.products);
-    const customers = getData(STORAGE.customers);
-    const orders = getData(STORAGE.orders);
+    const customers = getUserCustomers();
+    const orders = getUserOrders();
     document.getElementById('statProducts').textContent = products.length;
     document.getElementById('statCustomers').textContent = customers.length;
     document.getElementById('statOrders').textContent = orders.length;
@@ -1227,15 +1836,6 @@ function updateDashboard() {
 
 function initApp() {
     updateDashboard();
-    
-    // URL'de sipariş numarası varsa otomatik olarak alıcı onay sayfasına yönlendir[cite: 1]
-    const urlParams = new URLSearchParams(window.location.search);
-    const orderNoFromUrl = urlParams.get('orderNo');
-    if (orderNoFromUrl) {
-        showTab('buyerView');
-        document.getElementById('buyerOrderNo').value = orderNoFromUrl;
-        loadBuyerOrder();
-    }
 
     const today = new Date().toISOString().slice(0,10);
     const terminInput = document.getElementById('orderTermin');
@@ -1243,6 +1843,34 @@ function initApp() {
     const settings = getSettings();
     if (settings.publicKey) emailjs.init(settings.publicKey);
 }
+
+
+// ALICI MODU: Mail linkinden gelen kullanici icin login'siz onay/ret ekrani
+function initBuyerMode(orderNo) {
+    currentUser = { username: 'Alıcı', role: 'admin' };
+    document.getElementById('loginScreen').classList.add('hidden');
+    document.getElementById('app').classList.remove('hidden');
+    document.getElementById('appHeader').style.display = 'none';
+
+    // Sadece onay ekranini goster
+    document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+    document.querySelectorAll('.nav-tab').forEach(el => el.classList.remove('active'));
+    document.getElementById('tab-buyerView').classList.remove('hidden');
+
+    document.getElementById('buyerOrderNo').value = orderNo;
+    loadBuyerOrder();
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    initDefaultUsers();
+
+    // Mail linkinden gelen alici icin: login olmadan direkt onay ekrani
+    const urlParams = new URLSearchParams(window.location.search);
+    const orderNoFromUrl = urlParams.get('orderNo');
+    if (orderNoFromUrl) {
+        initBuyerMode(orderNoFromUrl);
+    }
+});
 
 document.addEventListener('keydown', e => {
     if (e.key === 'Enter' && !document.getElementById('loginScreen').classList.contains('hidden')) {
