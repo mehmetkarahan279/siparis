@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bayi Envanter Sistemi - KBR</title>
+    <style>
+        :root { --primary:#2563eb; --success:#10b981; --danger:#ef4444; --warning:#f59e0b; --bg:#f0f9ff; --border:#e0e7ff; }
+        * { box-sizing:border-box; margin:0; padding:0; }
+        body { font-family:'Segoe UI',system-ui,sans-serif; background:var(--bg); color:#1e293b; }
+        .hidden { display:none !important; }
+        .login-container { min-height:100vh; display:flex; align-items:center; justify-content:center; background:linear-gradient(135deg,#1e3a8a,#3b82f6); }
+        .login-box { background:white; padding:2.5rem; border-radius:16px; width:100%; max-width:400px; box-shadow:0 25px 50px -12px rgb(0 0 0 / 0.25); }
+        .login-box h1 { text-align:center; color:var(--primary); margin-bottom:1.5rem; }
+        .form-group { margin-bottom:1rem; }
+        label { display:block; margin-bottom:0.35rem; font-weight:600; font-size:0.875rem; }
+        input, select { width:100%; padding:0.65rem 0.85rem; border:1px solid var(--border); border-radius:8px; }
+        .btn { padding:0.65rem 1.1rem; border:none; border-radius:8px; font-weight:600; cursor:pointer; }
+        .btn-primary { background:var(--primary); color:white; }
+        .btn-success { background:var(--success); color:white; }
+        .btn-danger { background:var(--danger); color:white; }
+        .btn-outline { background:transparent; border:1px solid var(--border); }
+        .btn-sm { padding:0.35rem 0.7rem; font-size:0.82rem; }
+        .btn-block { width:100%; }
+        header { background:linear-gradient(90deg,#1e40af,#3b82f6); color:white; padding:0.75rem 1.5rem; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:0.5rem; }
+        header strong { color:white !important; }
+        .nav-tabs { display:flex; gap:0.25rem; background:#f1f5f9; padding:0.3rem; border-radius:10px; flex-wrap:wrap; }
+        .nav-tab { padding:0.45rem 0.85rem; border-radius:8px; border:none; background:transparent; cursor:pointer; font-size:0.85rem; color:#64748b; }
+        .nav-tab.active { background:white; color:#1e40af; box-shadow:0 1px 3px rgb(0 0 0 / 0.15); }
+        .main { max-width:1200px; margin:0 auto; padding:1.5rem; }
+        .card { background:white; border-radius:12px; border:1px solid var(--border); margin-bottom:1.5rem; }
+        .card-header { padding:1rem 1.25rem; border-bottom:1px solid var(--border); background:linear-gradient(90deg,#eff6ff,#f0fdf4); display:flex; justify-content:space-between; align-items:center; }
+        .card-body { padding:1.25rem; }
+        .grid-2 { display:grid; grid-template-columns:1fr 1fr; gap:1rem; }
+        .grid-3 { display:grid; grid-template-columns:1fr 1fr 1fr; gap:1rem; }
+        @media(max-width:800px){ .grid-2,.grid-3 { grid-template-columns:1fr; } }
+        table { width:100%; border-collapse:collapse; font-size:0.88rem; }
+        th,td { padding:0.65rem 0.75rem; text-align:left; border-bottom:1px solid var(--border); }
+        th { background:#f8fafc; font-weight:600; color:#475569; font-size:0.78rem; }
+        .empty { text-align:center; padding:2rem; color:#94a3b8; }
+        .user-badge { background:#e2e8f0; padding:0.3rem 0.7rem; border-radius:20px; font-size:0.82rem; font-weight:600; }
+    </style>
+</head>
+<body>
+<div id="loginScreen" class="login-container">
+    <div class="login-box">
+        <h1>📊 Bayi Envanter</h1>
+        <div class="form-group"><label>Kullanıcı Adı</label><input type="text" id="loginUser"></div>
+        <div class="form-group"><label>Şifre</label><input type="password" id="loginPass"></div>
+        <button class="btn btn-primary btn-block" onclick="login()">Giriş Yap</button>
+    </div>
+</div>
+
+<div id="app" class="hidden">
+    <header>
+        <strong style="color:var(--primary);">📊 Bayi Envanter</strong>
+        <div class="nav-tabs">
+            <button class="nav-tab active" data-tab="products" onclick="showTab('products')">Ürünler</button>
+            <button class="nav-tab" data-tab="dealers" onclick="showTab('dealers')">Bayilerim</button>
+            <button class="nav-tab" data-tab="entry" onclick="showTab('entry')">Envanter Girişi</button>
+            <button class="nav-tab" data-tab="report" onclick="showTab('report')">Rapor</button>
+            <button class="nav-tab admin-only hidden" data-tab="users" onclick="showTab('users')">Kullanıcılar</button>
+        </div>
+        <div style="display:flex;gap:0.5rem;align-items:center;">
+            <span id="userDisplay" class="user-badge"></span>
+            <button class="btn btn-outline btn-sm" onclick="logout()">Çıkış</button>
+        </div>
+    </header>
+
+    <div class="main">
+        <!-- ÜRÜNLER -->
+        <div id="tab-products" class="tab-content">
+            <div class="card admin-only hidden">
+                <div class="card-header"><h3>CSV ile Ürün Yükle</h3></div>
+                <div class="card-body">
+                    <div style="background:#eff6ff;padding:0.8rem;border-radius:8px;margin-bottom:1rem;font-size:0.88rem;">
+                        <strong>Format:</strong> kod;açıklama;barkod;paket_ici;koli_ici;palet_ici
+                    </div>
+                    <div style="border:2px dashed var(--border);border-radius:10px;padding:1.5rem;text-align:center;cursor:pointer;" onclick="document.getElementById('csvFile').click()">
+                        <input type="file" id="csvFile" accept=".csv,.txt" style="display:none" onchange="loadCSV(event)">
+                        📁 CSV dosyasını seçin
+                    </div>
+                </div>
+            </div>
+            <div class="card">
+                <div class="card-header">
+                    <h3>Ürün Listesi</h3>
+                    <button class="btn btn-danger btn-sm admin-only hidden" onclick="clearProducts()">Tümünü Sil</button>
+                </div>
+                <div class="card-body" style="overflow-x:auto;">
+                    <table><thead><tr><th>Kod</th><th>Açıklama</th><th>Barkod</th><th>Paket</th><th>Koli</th><th>Palet</th></tr></thead>
+                    <tbody id="productsTable"></tbody></table>
+                </div>
+            </div>
+        </div>
+
+        <!-- BAYİLER -->
+        <div id="tab-dealers" class="tab-content hidden">
+            <div class="card">
+                <div class="card-header"><h3>Yeni Bayi Ekle</h3></div>
+                <div class="card-body">
+                    <div class="grid-2">
+                        <div class="form-group"><label>Firma Adı *</label><input type="text" id="dName"></div>
+                        <div class="form-group"><label>Yetkili</label><input type="text" id="dContact"></div>
+                        <div class="form-group"><label>Telefon</label><input type="text" id="dPhone"></div>
+                        <div class="form-group"><label>Adres</label><input type="text" id="dAddress"></div>
+                    </div>
+                    <button class="btn btn-primary" onclick="saveDealer()">Bayiyi Kaydet</button>
+                </div>
+            </div>
+            <div class="card">
+                <div class="card-header"><h3>Bayilerim</h3></div>
+                <div class="card-body" style="overflow-x:auto;">
+                    <table><thead><tr><th>Firma</th><th>Yetkili</th><th>Telefon</th><th>Adres</th><th></th></tr></thead>
+                    <tbody id="dealersTable"></tbody></table>
+                </div>
+            </div>
+        </div>
+
+        <!-- ENVANTER GİRİŞİ -->
+        <div id="tab-entry" class="tab-content hidden">
+            <div class="card">
+                <div class="card-header"><h3>Envanter Girişi</h3></div>
+                <div class="card-body">
+                    <div class="grid-2">
+                        <div class="form-group"><label>Bayi *</label><select id="entryDealer"></select></div>
+                        <div class="form-group"><label>Tarih *</label><input type="date" id="entryDate"></div>
+                    </div>
+                    <div id="entryProducts" class="mt-3" style="overflow-x:auto;margin-top:1rem;"></div>
+                    <button class="btn btn-success" style="margin-top:1rem;" onclick="saveEntry()">Envanteri Kaydet</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- RAPOR -->
+        <div id="tab-report" class="tab-content hidden">
+            <div class="card">
+                <div class="card-header"><h3>Envanter Raporu</h3></div>
+                <div class="card-body">
+                    <div class="grid-3" style="margin-bottom:1rem;">
+                        <div class="form-group"><label>Bayi</label><select id="repDealer" onchange="renderReport()"><option value="">Tümü</option></select></div>
+                        <div class="form-group"><label>Başlangıç</label><input type="date" id="repStart" onchange="renderReport()"></div>
+                        <div class="form-group"><label>Bitiş</label><input type="date" id="repEnd" onchange="renderReport()"></div>
+                    </div>
+                    <div style="overflow-x:auto;">
+                        <table><thead><tr><th>Tarih</th><th>Bayi</th><th>Ürün</th><th>Adet</th></tr></thead>
+                        <tbody id="reportTable"></tbody></table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- KULLANICILAR -->
+        <div id="tab-users" class="tab-content hidden">
+            <div class="card">
+                <div class="card-header"><h3>Yeni Kullanıcı</h3></div>
+                <div class="card-body">
+                    <div class="grid-2">
+                        <div class="form-group"><label>Kullanıcı Adı</label><input type="text" id="uName"></div>
+                        <div class="form-group"><label>Şifre</label><input type="text" id="uPass"></div>
+                        <div class="form-group"><label>Rol</label>
+                            <select id="uRole"><option value="satici">Satıcı</option><option value="satis_muduru">Satış Müdürü</option><option value="admin">Admin</option></select>
+                        </div>
+                    </div>
+                    <button class="btn btn-primary" onclick="saveUser()">Ekle</button>
+                </div>
+            </div>
+            <div class="card">
+                <div class="card-header"><h3>Kullanıcılar</h3></div>
+                <div class="card-body"><table><thead><tr><th>Kullanıcı</th><th>Rol</th><th></th></tr></thead><tbody id="usersTable"></tbody></table></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+const S = { users:'env2_users', products:'env2_products', dealers:'env2_dealers', entries:'env2_entries', session:'env2_session' };
+function get(k){ try{ return JSON.parse(localStorage.getItem(k))||[]; }catch{ return []; } }
+function set(k,v){ localStorage.setItem(k, JSON.stringify(v)); }
+
+function init(){
+    if(get(S.users).length===0) set(S.users,[{username:'admin',password:'admin',role:'admin'}]);
+}
+let me = null;
+
+function login(){
+    const u=document.getElementById('loginUser').value.trim();
+    const p=document.getElementById('loginPass').value;
+    const found=get(S.users).find(x=>x.username===u && x.password===p);
+    if(!found){ alert('Hatalı giriş'); return; }
+    me=found;
+    sessionStorage.setItem(S.session, JSON.stringify(found));
+    enter();
+}
+function enter(){
+    document.getElementById('loginScreen').classList.add('hidden');
+    document.getElementById('app').classList.remove('hidden');
+    document.getElementById('userDisplay').textContent = me.username+' ('+(me.role==='admin'?'Admin':me.role==='satis_muduru'?'Satış Müdürü':'Satıcı')+')';
+    document.querySelectorAll('.admin-only').forEach(el=>el.classList.toggle('hidden', me.role!=='admin'));
+    showTab('products');
+    refresh();
+}
+function logout(){ sessionStorage.removeItem(S.session); location.reload(); }
+
+function showTab(id){
+    document.querySelectorAll('.tab-content').forEach(t=>t.classList.add('hidden'));
+    document.querySelectorAll('.nav-tab').forEach(t=>t.classList.remove('active'));
+    document.getElementById('tab-'+id).classList.remove('hidden');
+    document.querySelector(`.nav-tab[data-tab="${id}"]`).classList.add('active');
+    if(id==='entry') renderEntryForm();
+    if(id==='report') renderReport();
+    if(id==='users') renderUsers();
+}
+
+function refresh(){ renderProducts(); renderDealers(); fillDealerSelects(); }
+
+function loadCSV(e){
+    const f=e.target.files[0]; if(!f) return;
+    const r=new FileReader();
+    r.onload=ev=>{
+        let raw = ev.target.result;
+        raw = raw.replace(/(\d),(\d+)E\+(\d+)/gi, (m, a, b, exp) => {
+            try {
+                const num = parseFloat((a + '.' + b).replace(',', '.')) * Math.pow(10, parseInt(exp, 10));
+                return Math.round(num).toString();
+            } catch(err) { return m; }
+        });
+        const lines = raw.split(/\r?\n/).filter(l => l.trim());
+        let prods = get(S.products);
+        let added = 0;
+        lines.forEach((line, i) => {
+            if (i === 0 && line.toLowerCase().includes('kod')) return;
+            const parts = line.split(';').map(x => x.trim());
+            if (parts.length < 2 || !parts[0] || !parts[1]) return;
+            prods.push({
+                id: Date.now() + added + Math.floor(Math.random() * 10000),
+                kod: parts[0],
+                aciklama: parts[1],
+                barkod: parts[2] || '',
+                paket: parseInt(parts[3]) || 0,
+                koli: parseInt(parts[4]) || 0,
+                palet: parseInt(parts[5]) || 0
+            });
+            added++;
+        });
+        set(S.products, prods);
+        renderProducts();
+        alert(added + ' satır eklendi. Toplam: ' + prods.length);
+        e.target.value = '';
+    };
+    r.readAsText(f, 'UTF-8');
+}
+
+function renderProducts(){
+    const prods=get(S.products);
+    const tb=document.getElementById('productsTable');
+    if(!prods.length){ tb.innerHTML='<tr><td colspan="6" class="empty">Ürün yok</td></tr>'; return; }
+    tb.innerHTML=prods.map(p=>`<tr><td>${p.kod}</td><td>${p.aciklama}</td><td>${p.barkod||'-'}</td><td>${p.paket}</td><td>${p.koli}</td><td>${p.palet}</td></tr>`).join('');
+}
+function clearProducts(){
+    if(me.role!=='admin') return;
+    if(!confirm('Tüm ürünler silinsin mi?')) return;
+    set(S.products,[]); renderProducts();
+}
+
+function saveDealer(){
+    const name=document.getElementById('dName').value.trim();
+    if(!name){ alert('Firma adı zorunlu'); return; }
+    const dealers=get(S.dealers);
+    dealers.push({
+        id:Date.now(), name,
+        contact:document.getElementById('dContact').value.trim(),
+        phone:document.getElementById('dPhone').value.trim(),
+        address:document.getElementById('dAddress').value.trim(),
+        owner: me.username
+    });
+    set(S.dealers, dealers);
+    renderDealers(); fillDealerSelects();
+    alert('Bayi kaydedildi');
+}
+function getMyDealers(){
+    const all=get(S.dealers);
+    if(me.role==='admin' || me.role==='satis_muduru') return all;
+    return all.filter(d=>d.owner===me.username);
+}
+function renderDealers(){
+    const dealers=getMyDealers();
+    const tb=document.getElementById('dealersTable');
+    if(!dealers.length){ tb.innerHTML='<tr><td colspan="5" class="empty">Bayi yok</td></tr>'; return; }
+    tb.innerHTML=dealers.map(d=>`<tr><td>${d.name}</td><td>${d.contact||'-'}</td><td>${d.phone||'-'}</td><td>${d.address||'-'}</td>
+        <td>${(me.role==='admin'||d.owner===me.username)?`<button class="btn btn-danger btn-sm" onclick="delDealer(${d.id})">Sil</button>`:''}</td></tr>`).join('');
+}
+function delDealer(id){
+    if(!confirm('Silinsin mi?')) return;
+    set(S.dealers, get(S.dealers).filter(d=>d.id!==id));
+    renderDealers(); fillDealerSelects();
+}
+function fillDealerSelects(){
+    const dealers=getMyDealers();
+    const opts=dealers.map(d=>`<option value="${d.id}">${d.name}</option>`).join('');
+    document.getElementById('entryDealer').innerHTML=opts||'<option value="">Bayi yok</option>';
+    document.getElementById('repDealer').innerHTML='<option value="">Tümü</option>'+opts;
+}
+
+function renderEntryForm(){
+    const prods = get(S.products);
+    const cont = document.getElementById('entryProducts');
+    if (!prods.length) { cont.innerHTML = '<p class="empty">Önce ürün yükleyin</p>'; return; }
+    let html = `
+        <div style="margin-bottom:0.75rem;">
+            <input type="text" id="entrySearch" placeholder="Ürün ara (kod veya açıklama)..." oninput="filterEntryProducts()" style="max-width:300px;">
+            <span style="margin-left:0.75rem;font-size:0.85rem;color:#64748b;">${prods.length} ürün</span>
+        </div>
+        <div style="max-height:480px;overflow-y:auto;border:1px solid var(--border);border-radius:8px;">
+        <table>
+            <thead style="position:sticky;top:0;background:#f8fafc;"><tr><th>Kod</th><th>Açıklama</th><th>Adet</th></tr></thead>
+            <tbody id="entryRowsBody">`;
+    prods.forEach(p => {
+        html += `<tr class="entry-row" data-search="${(p.kod+' '+p.aciklama).toLowerCase()}">
+            <td>${p.kod}</td>
+            <td>${p.aciklama}</td>
+            <td><input type="number" class="entry-qty" data-id="${p.id}" value="0" min="0" style="width:80px;"></td>
+        </tr>`;
+    });
+    html += '</tbody></table></div>';
+    cont.innerHTML = html;
+    const dateInp = document.getElementById('entryDate');
+    if (dateInp) {
+        const today = new Date().toISOString().split('T')[0];
+        dateInp.min = today;
+        if (!dateInp.value || dateInp.value < today) dateInp.value = today;
+    }
+}
+
+function filterEntryProducts(){
+    const q = (document.getElementById('entrySearch').value || '').toLowerCase();
+    document.querySelectorAll('.entry-row').forEach(tr => {
+        tr.style.display = tr.dataset.search.includes(q) ? '' : 'none';
+    });
+}
+function saveEntry(){
+    const dealerId=+document.getElementById('entryDealer').value;
+    const date=document.getElementById('entryDate').value;
+    if(!dealerId||!date){ alert('Bayi ve tarih zorunlu'); return; }
+    const today = new Date().toISOString().split('T')[0];
+    if (date < today) { alert('Geçmiş tarihe envanter girilemez!'); return; }
+    const items=[];
+    document.querySelectorAll('.entry-qty').forEach(inp=>{
+        const qty = +inp.value || 0;
+        if (qty > 0) items.push({ productId: +inp.dataset.id, qty });
+    });
+    if(!items.length){ alert('En az bir ürün ve adet girin'); return; }
+    const entries=get(S.entries);
+    entries.unshift({ id:Date.now(), date, dealerId, items, user:me.username });
+    set(S.entries, entries);
+    alert('Envanter kaydedildi');
+    renderEntryForm();
+}
+
+function renderReport(){
+    let entries=get(S.entries);
+    const myDealerIds=getMyDealers().map(d=>d.id);
+    entries=entries.filter(e=>myDealerIds.includes(e.dealerId));
+    const dealerF=document.getElementById('repDealer').value;
+    const start=document.getElementById('repStart').value;
+    const end=document.getElementById('repEnd').value;
+    if(dealerF) entries=entries.filter(e=>e.dealerId==dealerF);
+    if(start) entries=entries.filter(e=>e.date>=start);
+    if(end) entries=entries.filter(e=>e.date<=end);
+    const prods=get(S.products);
+    const dealers=get(S.dealers);
+    const tb=document.getElementById('reportTable');
+    const rows=[];
+    entries.forEach(e=>{
+        const d=dealers.find(x=>x.id===e.dealerId);
+        e.items.forEach(it=>{
+            if(it.qty<=0) return;
+            const p=prods.find(x=>x.id===it.productId)||{};
+            rows.push(`<tr><td>${e.date}</td><td>${d?d.name:'-'}</td><td>${p.kod||''} - ${p.aciklama||''}</td><td><strong>${it.qty}</strong></td></tr>`);
+        });
+    });
+    tb.innerHTML=rows.length?rows.join(''):'<tr><td colspan="4" class="empty">Kayıt yok</td></tr>';
+}
+
+function saveUser(){
+    if(me.role!=='admin'){ alert('Yetkiniz yok'); return; }
+    const username=document.getElementById('uName').value.trim();
+    const password=document.getElementById('uPass').value;
+    const role=document.getElementById('uRole').value;
+    if(!username||!password){ alert('Zorunlu alanlar'); return; }
+    const users=get(S.users);
+    if(users.find(u=>u.username===username)){ alert('Kullanıcı var'); return; }
+    users.push({ username, password, role });
+    set(S.users, users);
+    renderUsers();
+    alert('Eklendi');
+}
+function renderUsers(){
+    const users=get(S.users);
+    document.getElementById('usersTable').innerHTML=users.map(u=>`<tr><td>${u.username}</td><td>${u.role}</td>
+        <td>${u.username!=='admin'?`<button class="btn btn-danger btn-sm" onclick="delUser('${u.username}')">Sil</button>`:''}</td></tr>`).join('');
+}
+function delUser(username){
+    if(!confirm('Silinsin mi?')) return;
+    set(S.users, get(S.users).filter(u=>u.username!==username));
+    renderUsers();
+}
+
+document.addEventListener('DOMContentLoaded',()=>{
+    init();
+    try{
+        const s=sessionStorage.getItem(S.session);
+        if(s){ me=JSON.parse(s); enter(); }
+    }catch(e){}
+});
+</script>
+</body>
+</html>
