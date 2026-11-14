@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bayi Satışları - KBR</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: 'Segoe UI', system-ui, sans-serif; background: #f1f5f9; color: #1e293b; }
+        header { background: white; padding: 1rem 1.5rem; border-bottom: 1px solid #e2e8f0; display: flex; align-items: center; justify-content: space-between; }
+        header h1 { color: #1e40af; font-size: 1.3rem; }
+        .back { color: #64748b; text-decoration: none; font-size: 0.9rem; }
+        .container { max-width: 1100px; margin: 2rem auto; padding: 0 1rem; }
+        .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; margin-bottom: 1.5rem; }
+        .stat { background: white; border-radius: 12px; border: 1px solid #e2e8f0; padding: 1.25rem; text-align: center; }
+        .stat .num { font-size: 1.6rem; font-weight: 700; color: #1e40af; }
+        .stat .lbl { font-size: 0.85rem; color: #64748b; margin-top: 0.3rem; }
+        .card { background: white; border-radius: 12px; border: 1px solid #e2e8f0; padding: 1.5rem; }
+        .card h2 { margin-bottom: 1rem; font-size: 1.1rem; }
+        table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+        th, td { padding: 0.75rem; text-align: left; border-bottom: 1px solid #e2e8f0; }
+        th { background: #f8fafc; font-weight: 600; color: #475569; }
+        .empty { text-align: center; padding: 3rem; color: #94a3b8; }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>💰 Bayi Satışları</h1>
+        <a href="index.html" class="back">← Ana Sayfa</a>
+    </header>
+    <div class="container">
+        <div class="stats">
+            <div class="stat"><div class="num">0</div><div class="lbl">Toplam Satış</div></div>
+            <div class="stat"><div class="num">0 ₺</div><div class="lbl">Toplam Ciro</div></div>
+            <div class="stat"><div class="num">0</div><div class="lbl">Aktif Bayi</div></div>
+        </div>
+        <div class="card">
+            <h2>Satış Listesi</h2>
+            <table>
+                <thead>
+                    <tr><th>Tarih</th><th>Bayi</th><th>Ürün</th><th>Miktar</th><th>Tutar</th></tr>
+                </thead>
+                <tbody>
+                    <tr><td colspan="5" class="empty">Henüz satış kaydı yok.</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</body>
+</html>
